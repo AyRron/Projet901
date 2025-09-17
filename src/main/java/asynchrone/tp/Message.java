@@ -2,21 +2,21 @@ package asynchrone.tp;
 
 public abstract class Message {
 
-    private String payload;
+    private Object payload;
     private int estampillage;
-    private String senderId;
+    private int senderId;
 
-    public Message(String payload, int estampillage, String senderId) {
+    public Message(Object payload, int estampillage, int senderId) {
         this.payload = payload;
         this.estampillage = estampillage;
         this.senderId = senderId;
     }
 
-    public String getPayload() {
+    public Object getPayload() {
         return payload;
     }
 
-    public void setPayload(String payload) {
+    public void setPayload(Object payload) {
         this.payload = payload;
     }
 
@@ -28,11 +28,11 @@ public abstract class Message {
         this.estampillage = estampillage;
     }
 
-    public String getSenderId() {
+    public int getSenderId() {
         return senderId;
     }
 
-    public void setSenderId(String senderId) {
+    public void setSenderId(int senderId) {
         this.senderId = senderId;
     }
 }
