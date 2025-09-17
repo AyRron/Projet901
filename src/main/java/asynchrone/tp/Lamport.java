@@ -1,0 +1,24 @@
+package asynchrone.tp;
+
+public class Lamport {
+
+    private int horloge;
+
+    public Lamport() {
+        this.horloge = 0;
+    }
+
+    public int estampIn(int In){
+        this.horloge = Math.max(this.horloge, In) + 1;
+        return this.horloge;
+    }
+
+    public int estampOut(){
+        this.horloge += 1;
+        return this.horloge;
+    }
+
+    public int getHorloge() {
+        return horloge;
+    }
+}
