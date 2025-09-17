@@ -20,8 +20,6 @@ public class Process  implements Runnable {
 		this.bus = EventBusService.getInstance();
 		this.bus.registerSubscriber(this); // Auto enregistrement sur le bus afin que les methodes "@Subscribe" soient invoquees automatiquement.
 
-        this.estamp = new Lamport();
-
 		this.thread = new Thread(this);
 		this.thread.setName("MainThread-"+name);
 		this.processName = name;
@@ -57,6 +55,7 @@ public class Process  implements Runnable {
 
     // Fonction principale
 	public void run(){
+		this.estamp = new Lamport();
 		int loop = 0;
 
 		System.out.println(Thread.currentThread().getName() + " id :" + this.id);
@@ -67,9 +66,10 @@ public class Process  implements Runnable {
 				Thread.sleep(500);
 
 				if(this.processName.equals("P1")){
-					BroadcastMessage b1 = new BroadcastMessage("ga", estamp.estampOut(), this.processName);
-					System.out.println(Thread.currentThread().getName() + " send : " + b1.getPayload() + " avec l'estampille " + b1.getEstampillage());
+					System.out.println("estampille avant envoi : " + estamp.getHorloge());
+					BroadcastMessage b1 = new BroadcastMessage("ga", estamp.getHorloge(), this.processName);
 					broadcast(b1);
+					System.out.println(Thread.currentThread().getName() + " send : " + b1.getPayload() + " avec l'estampille " + b1.getEstampillage());
 				}
 
 			}catch(Exception e){
