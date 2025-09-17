@@ -1,5 +1,5 @@
-#Projet 901
+# Projet 901
 
-##Contributeurs:
+## Contributeurs:
 - Feltrin Mathis
 - Pitar Cyril
