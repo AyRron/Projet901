@@ -68,7 +68,6 @@ public class Process  implements Runnable {
 
 				if(this.processName.equals("P1")){
 					BroadcastMessage b1 = new BroadcastMessage("ga", estamp.estampOut(), this.processName);
-					Bidule b2 = new Bidule("bu");
 					System.out.println(Thread.currentThread().getName() + " send : " + b1.getPayload() + " avec l'estampille " + b1.getEstampillage());
 					broadcast(b1);
 				}
