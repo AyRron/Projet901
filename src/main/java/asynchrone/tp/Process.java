@@ -112,6 +112,10 @@ public class Process  implements Runnable {
         this.thread.start();
     }
 
+    public String getName() {
+        return Thread.currentThread().getName();
+    }
+
     public void run(){
         int loop = 0;
 
@@ -121,6 +125,24 @@ public class Process  implements Runnable {
             System.out.println(Thread.currentThread().getName() + " Loop : " + loop);
             try{
                 Thread.sleep(500);
+
+                if (this.getName().equals("P0")){
+                    Message msg;
+                    this.com.sendTo("j'appelle 2 et je te recontacte après", 2);
+
+
+                    if (this.com.mailbox.isEmpty()){
+                        System.out.println("Catched !");
+                        this.com.broadcast("J'ai gagné !!!");
+                    }else{
+                        msg = this.com.mailbox.getMsg();
+                        System.out.println(msg.getSender() + " à eu le jeton en premier");
+                    }
+                } else if (this.getName().equals("P2")){
+                    Message msg;
+                    msg = this.com.mailbox.getMsg();
+                    System.out.println(msg);
+                }
 
                 /*if (this.getName() == "P0"){
                     this.com.sendTo("j'appelle 2 et je te recontacte après", 1);
@@ -145,7 +167,7 @@ public class Process  implements Runnable {
                 }
                 if (this.getName() == "P1"){
                     if (!this.com.mailbox.isEmpty()){
-                        this.com.mailbox.getMsg();
+                        msg = this.com.mailbox.getMsg();
                         this.com.recevFromSync(msg, 0);
 
                         this.com.synchronize();

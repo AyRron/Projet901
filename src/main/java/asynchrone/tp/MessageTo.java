@@ -16,4 +16,8 @@ public class MessageTo extends Message {
     public void setDestId(int destId) {
         this.destId = destId;
     }
+
+    public int getDest() {
+        return destId;
+    }
 }

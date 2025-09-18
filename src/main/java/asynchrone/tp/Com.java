@@ -8,7 +8,7 @@ public class Com {
 
     private int nbProcess = 0;
     private int id;
-    public MailBox mailbox;
+    public MailBox mailbox = new MailBox();
     private EventBusService bus;
 
     public Com() {
@@ -23,7 +23,7 @@ public class Com {
 
     @Subscribe
     public void onBroadcast(BroadcastMessage m) {
-        if (m.getSenderId() != this.id) {
+        if (m.getSender() != this.id) {
             mailbox.add(m);
             System.out.println(Thread.currentThread().getName() + " receives broadcast: " + m.getPayload() + " pour process " + this.id + " avec l'estampille " + m.getEstampillage());
         }
@@ -31,7 +31,8 @@ public class Com {
 
     @Subscribe
     public void onMessageTo(MessageTo m) {
-        if (m.getSender() == this.id) {
+        System.out.println(m.getSender() + " receives message: " + m.getPayload());
+        if (m.getDest() == this.id) {
             mailbox.add(m);
             System.out.println(Thread.currentThread().getName() + " receives message to: " + m.getPayload() + " pour process " + this.id + " avec l'estampille " + m.getEstampillage());
         }

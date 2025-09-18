@@ -28,11 +28,11 @@ public abstract class Message {
         this.estampillage = estampillage;
     }
 
-    public int getSenderId() {
+    public int getSender() {
         return senderId;
     }
 
-    public void setSenderId(int senderId) {
+    public void setSender(int senderId) {
         this.senderId = senderId;
     }
 }
