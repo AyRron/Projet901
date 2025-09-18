@@ -145,7 +145,7 @@ public class Process  implements Runnable {
                 }
                 if (this.getName() == "P1"){
                     if (!this.com.mailbox.isEmpty()){
-                        this.com.mailbox.getMessage();
+                        this.com.mailbox.getMsg();
                         this.com.recevFromSync(msg, 0);
 
                         this.com.synchronize();
