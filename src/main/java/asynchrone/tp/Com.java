@@ -1,6 +1,9 @@
 package asynchrone.tp;
 import com.google.common.eventbus.Subscribe;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import static java.lang.Thread.sleep;
 
 
@@ -14,16 +17,25 @@ public class Com {
 
     /** Nombre total de processus créés. */
     private static int nbProcess = -1;
+    /** Nombre total de processus dans le système. */
+    private int nbTotalProcess;
     /** Identifiant unique du processus. */
     private int id;
     /** Boîte aux lettres pour stocker les messages reçus. */
-    public MailBox mailbox = new MailBox();
+    public MailBox mailbox;
     /** Service EventBus pour la communication inter-processus. */
     private EventBusService bus;
     /** Token pour la section critique. */
     private Token token;
+    /** État actuel du processus par rapport à la section critique. */
+    private EtatSC etatSC;
+    /** Indique si le processus est en attente de réception d'un message synchrone. */
+    private boolean attenteSync;
+    /** Ensemble des identifiants des processus dont on attend la réception d'un message. */
+    private Set<Integer> pendingRecieves;
+    /** Message du Broadcast. */
+    private MessageBroadcastSync messageBroadcastSync;
 
-    private EtatSC etatSC = EtatSC.NULL;
 
 
     // Attributs pour gérer la communication synchrone
@@ -44,14 +56,20 @@ public class Com {
     public Com() {
         this.bus = EventBusService.getInstance();
         this.bus.registerSubscriber(this);
+        this.nbTotalProcess = Process.maxNbProcess;
+        this.mailbox = new MailBox();
         this.nbProcess++;
         this.id = nbProcess;
+        this.messageBroadcastSync = null;
+        this.etatSC = EtatSC.NULL;
+        this.attenteSync = false;
+        this.pendingRecieves = new HashSet<>();
 
         System.out.println(this.id);
-        System.out.println(this.id == (Process.maxNbProcess)-1);
+        System.out.println(this.id == (nbTotalProcess)-1);
 
-        if (this.id == (Process.maxNbProcess-1)) {
-            this.token = new Token(Process.maxNbProcess);
+        if (this.id == (nbTotalProcess-1)) {
+            this.token = new Token(nbTotalProcess);
             token.next();
             sendToken(token);
         };
@@ -113,15 +131,36 @@ public class Com {
     }
 
     // ----------------------- Message Broadcast Synchrone -----------------------
+
+    /**
+     *
+     * @return
+     */
+    public MessageBroadcastSync onBroadcastSync(){
+        while (this.messageBroadcastSync == null) {
+            try{
+                sleep(100);
+            }catch(InterruptedException e){
+                e.printStackTrace();
+            }
+        }
+        MessageBroadcastSync res = this.messageBroadcastSync;
+        this.messageBroadcastSync = null;
+        return res;
+    }
+
+
+
     /**
      * Méthode appelée lors de la réception d'un message broadcast synchrone.
      * @param m message broadcast synchrone reçu
      */
     @Subscribe
-    public synchronized void onBroadcastSync(MessageBroadcastSync m) {
+    public void onBroadcastSyncSystem(MessageBroadcastSync m) {
         if (m.getSender() != this.id) {
-            mailbox.add(m);
-            notifyAll();
+            System.out.println("Mon message est: " + m.getPayload());
+            this.messageBroadcastSync = m;
+            sendRecieve(m.getSender());
         }
     }
 
@@ -130,10 +169,46 @@ public class Com {
      * @param o contenu du message à diffuser
      * @return le contenu du message envoyé
      */
-    public synchronized Object broadcastSync(Object o) {
+    public void broadcastSync(Object o) {
         MessageBroadcastSync message = new MessageBroadcastSync(o, 1, id);
         EventBusService.getInstance().postEvent(message);
-        return message.getPayload();
+
+        // Initialiser la liste des destinataires attendus (sauf soi-même)
+        pendingRecieves.clear();
+        for (int i = 0; i < nbTotalProcess; i++) {
+            if (i != id) pendingRecieves.add(i);
+        }
+        attenteSync = true;
+    }
+
+    // ----------------------- Message de Recieve -----------------------
+
+    @Subscribe
+    private synchronized void onRecieve(Recieve m) {
+        if (m.getDest() == this.id) {
+            pendingRecieves.remove(m.getSender());
+            if (pendingRecieves.isEmpty()) {
+                attenteSync = false; // Tous les Recieve reçus
+                notifyAll();
+            }
+        }
+    }
+
+
+    private synchronized void sendRecieve(int dest) {
+        Recieve message = new Recieve(null, 1, id, dest);
+        EventBusService.getInstance().postEvent(message);
+    }
+
+
+    private synchronized void waitSyncComplete() {
+        while (attenteSync) {
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     // ----------------------- Message To Synchrone -----------------------
@@ -143,7 +218,7 @@ public class Com {
      * @param dest identifiant du destinataire attendu
      * @return le message reçu ou traité
      */
-    @Subscribe
+    /*@Subscribe
     public synchronized MessageToSync recevFromSync(int dest) {
         if (m.getDest() == this.id) {
             // Traitement du message reçu
@@ -162,7 +237,7 @@ public class Com {
             responseReceived = true;
             notifyAll();
         }
-    }
+    }*/
 
     /**
      * Envoie un message direct synchrone à un processus cible.
@@ -171,7 +246,7 @@ public class Com {
      * @param dest identifiant du destinataire
      * @return la réponse reçue du destinataire
      */
-    public synchronized Object sendToSync(Object o, int dest) {
+    /*public synchronized Object sendToSync(Object o, int dest) {
         // Réinitialiser les variables d'état
         syncResponse = null;
         responseReceived = false;
@@ -194,7 +269,7 @@ public class Com {
         waitingForResponseFrom = -1;
 
         return syncResponse;
-    }
+    }*/
 
     // ----------------------- Token ------------------------
 

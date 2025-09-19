@@ -41,13 +41,8 @@ public class Process  implements Runnable {
                 if (this.getName().equals("P0")){
                     Message msg;
 
-                    this.com.requestSC();
-
-
-                    this.com.releaseSC();
+                    this.com.broadcastSync("ALLEEEEEER");
                     /*System.out.println(this.getName());*/
-                    this.com.sendTo("j'appelle 2 et je te recontacte après", 2);
-
 
                     /*if (this.com.mailbox.isEmpty()){
                         System.out.println("If 1 de P0");
@@ -58,10 +53,10 @@ public class Process  implements Runnable {
                         msg = this.com.mailbox.getMsg();
                         System.out.println(msg.getSender() + " à eu le jeton en premier");
                     }*/
-                } else if (this.getName().equals("P2")){
-                    /*Message msg;
-                    msg = this.com.mailbox.getMsg();
-                    System.out.println("Le message de P2 est : " + msg.getPayload());*/
+                } else {
+                    Message msg;
+                    msg = this.com.onBroadcastSync();
+                    System.out.println("Le message de P2 est : " + msg.getPayload());
                 }
 
                 /*if (this.getName() == "P0"){
