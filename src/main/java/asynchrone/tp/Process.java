@@ -1,97 +1,6 @@
 package asynchrone.tp;
 
-
 import com.google.common.eventbus.Subscribe;
-
-/*
-public class Process  implements Runnable {
-	private Thread thread;
-	private EventBusService bus;
-	private boolean alive;
-	private boolean dead;
-	public static final int maxNbProcess = 3;
-	private static int nbProcess = 0;
-	private int id = Process.nbProcess++;
-    private String processName;
-
-    private Lamport estamp;
-
-	public Process(String name){
-
-		this.bus = EventBusService.getInstance();
-		this.bus.registerSubscriber(this); // Auto enregistrement sur le bus afin que les methodes "@Subscribe" soient invoquees automatiquement.
-
-		this.thread = new Thread(this);
-		this.thread.setName("MainThread-"+name);
-		this.processName = name;
-		this.alive = true;
-		this.dead = false;
-		this.thread.start();
-	}
-
-
-    // Fonction créée --------------------------------------------------------------------------------------------------
-
-    public void broadcast(Object o){
-        estamp.estampOut();
-        bus.postEvent(o);
-    }
-
-    @Subscribe
-    public void onBroadcast(BroadcastMessage m){
-        if (!(m.getSenderId().equals(this.processName))){
-            estamp.estampIn(m.getEstampillage());
-            System.out.println(Thread.currentThread().getName() + " receives broadcast: " + m.getPayload() + " pour process " + this.processName + " avec l'estampille " + this.estamp.getHorloge());
-        }
-    }
-
-
-    // Fonction principale
-	public void run(){
-		this.estamp = new Lamport();
-		int loop = 0;
-
-		System.out.println(Thread.currentThread().getName() + " id :" + this.id);
-
-		while(this.alive){
-			System.out.println(Thread.currentThread().getName() + " Loop : " + loop);
-			try{
-				Thread.sleep(500);
-
-				if(this.processName.equals("P1")){
-					System.out.println("estampille avant envoi : " + estamp.getHorloge());
-					BroadcastMessage b1 = new BroadcastMessage("ga", estamp.getHorloge(), this.processName);
-					broadcast(b1);
-					System.out.println(Thread.currentThread().getName() + " send : " + b1.getPayload() + " avec l'estampille " + b1.getEstampillage());
-				}
-
-			}catch(Exception e){
-				e.printStackTrace();
-			}
-			loop++;
-		}
-
-		// liberation du bus
-		this.bus.unRegisterSubscriber(this);
-		this.bus = null;
-		System.out.println(Thread.currentThread().getName() + " stopped");
-		this.dead = true;
-	}
-
-	public void waitStoped(){
-		while(!this.dead){
-			try{
-				Thread.sleep(500);
-			}catch(Exception e){
-				e.printStackTrace();
-			}
-		}
-	}
-	public void stop(){
-		this.alive = false;
-	}
-}
-*/
 
 public class Process  implements Runnable {
     private Thread thread;
@@ -100,6 +9,9 @@ public class Process  implements Runnable {
     private Com com;
     public static final int maxNbProcess = 4;
     private int id;
+
+    // Configuration pour choisir le type de test
+    private static final String TEST_MODE = "SYNC_COMMUNICATION"; // ou "CRITICAL_SECTION" ou "SYNC_COMMUNICATION"
 
     public Process(String name){
         this.com = new Com();
@@ -119,34 +31,40 @@ public class Process  implements Runnable {
     public void run(){
         int loop = 0;
 
-        /*System.out.println(Thread.currentThread().getName() + " id :" + this.id);*/
+        System.out.println(Thread.currentThread().getName() + " id :" + this.id);
 
         while(this.alive){
-            /*System.out.println(Thread.currentThread().getName() + " Loop : " + loop);*/
+            System.out.println(Thread.currentThread().getName() + " Loop : " + loop);
             try{
                 Thread.sleep(500);
 
 
 
-                if (this.getName().equals("P0")){
-                    Message msg;
-                    System.out.println(this.getName());
-                    this.com.sendTo("j'appelle 2 et je te recontacte après", 2);
+                // Choix du test selon la configuration
+                if (TEST_MODE.equals("CRITICAL_SECTION")) {
+                    runCriticalSectionTest(loop);
+                } else if (TEST_MODE.equals("SYNC_COMMUNICATION")) {
+                    runSyncCommunicationTest(loop);
+                }
 
-
-                    /*if (this.com.mailbox.isEmpty()){
-                        System.out.println("If 1 de P0");
-                        System.out.println("Catched !");
-                        this.com.broadcast("J'ai gagné !!!");
-                    }else{
-                        System.out.println("If 2 de P0");
-                        msg = this.com.mailbox.getMsg();
-                        System.out.println(msg.getSender() + " à eu le jeton en premier");
-                    }*/
-                } else if (this.getName().equals("P2")){
-                    /*Message msg;
-                    msg = this.com.mailbox.getMsg();
-                    System.out.println("Le message de P2 est : " + msg.getPayload());*/
+                // Affichage des messages reçus des autres processus (sauf messages synchrones)
+                while (!this.com.mailbox.isEmpty()) {
+                    try {
+                        Message msg = this.com.mailbox.getMsg();
+                        if (msg != null && !msg.isSystemMessage()) {
+                            // Ne pas afficher les messages synchrones qui seront traités par recevFromSync
+                            if (!(msg.getClass().getSimpleName().startsWith("Sync"))) {
+                                System.out.println(this.getName() + " - Message reçu: " + msg.getPayload());
+                            } else {
+                                // Remettre le message synchrone dans la mailbox pour recevFromSync
+                                this.com.mailbox.add(msg);
+                                break; // Sortir de la boucle pour éviter une boucle infinie
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
 
                 /*if (this.getName() == "P0"){
@@ -212,6 +130,9 @@ public class Process  implements Runnable {
             loop++;
         }
 
+        // Cleanup resources before stopping
+        this.com.cleanup();
+
         System.out.println(Thread.currentThread().getName() + " stopped");
         this.dead = true;
     }
@@ -227,5 +148,130 @@ public class Process  implements Runnable {
     }
     public void stop(){
         this.alive = false;
+    }
+
+    // ========== MÉTHODES DE TEST ==========
+
+    /**
+     * Test de la section critique distribuée
+     */
+    private void runCriticalSectionTest(int loop) {
+        try {
+            // Synchronisation initiale pour que tous démarrent en même temps
+            if (loop == 0) {
+                System.out.println(this.getName() + " - Attente synchronisation initiale...");
+                this.com.synchronize();
+                System.out.println(this.getName() + " - Tous les processus sont synchronisés !");
+            }
+
+            // Test de la section critique - chaque processus essaie d'y accéder
+            if (loop >= 1 && loop <= 3) {  // 3 tentatives par processus
+                System.out.println(this.getName() + " - Demande d'accès à la section critique (tentative " + loop + ")");
+
+                long startTime = System.currentTimeMillis();
+                this.com.requestSC();  // SECTION CRITIQUE DEMANDÉE
+                long waitTime = System.currentTimeMillis() - startTime;
+
+                System.out.println("*** " + this.getName() + " - ENTRÉE EN SECTION CRITIQUE après " + waitTime + "ms ***");
+                System.out.println(this.getName() + " - État SC actuel: " + this.com.getSCStateString());
+
+                // Simulation du travail en section critique
+                System.out.println(this.getName() + " - Travail en section critique...");
+                Thread.sleep(200);  // Simule du travail
+
+                // Broadcast pour informer les autres qu'on est en SC
+                this.com.broadcast(this.getName() + " était en section critique !");
+
+                System.out.println("*** " + this.getName() + " - SORTIE DE SECTION CRITIQUE ***");
+                this.com.releaseSC();  // LIBÉRATION DE LA SECTION CRITIQUE
+
+                // Attendre un peu avant la prochaine tentative
+                Thread.sleep(100);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(this.getName() + " - Interruption pendant le test SC");
+        }
+    }
+
+    /**
+     * Test de la communication synchrone
+     */
+    private void runSyncCommunicationTest(int loop) {
+        try {
+            // Synchronisation initiale
+            if (loop == 0) {
+                System.out.println(this.getName() + " - Attente synchronisation initiale...");
+                this.com.synchronize();
+                System.out.println(this.getName() + " - Tous les processus sont synchronisés !");
+                return;
+            }
+
+            // Tests de communication synchrone selon les processus
+            if (loop == 1) {
+                testBroadcastSync();
+            } else if (loop == 2) {
+                testSendToSync();
+            } else if (loop == 3) {
+                testRecevFromSync();
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(this.getName() + " - Interruption pendant le test sync");
+        }
+    }
+
+    /**
+     * Test du broadcast synchrone
+     */
+    private void testBroadcastSync() throws InterruptedException {
+        if (this.getName().equals("P0")) {
+            System.out.println("=== TEST BROADCAST SYNC ===");
+            System.out.println(this.getName() + " - Envoi d'un broadcastSync...");
+            long startTime = System.currentTimeMillis();
+
+            this.com.broadcastSync("Message broadcast synchrone de P0", 0);
+
+            long duration = System.currentTimeMillis() - startTime;
+            System.out.println(this.getName() + " - BroadcastSync terminé après " + duration + "ms");
+
+        } else {
+            System.out.println(this.getName() + " - Attente du broadcastSync de P0...");
+            this.com.broadcastSync("", 0); // Les autres attendent le message de P0
+            System.out.println(this.getName() + " - BroadcastSync reçu de P0");
+        }
+    }
+
+    /**
+     * Test de sendToSync
+     */
+    private void testSendToSync() throws InterruptedException {
+        if (this.getName().equals("P1")) {
+            System.out.println("=== TEST SEND TO SYNC ===");
+            System.out.println(this.getName() + " - Envoi sendToSync à P2...");
+            long startTime = System.currentTimeMillis();
+
+            this.com.sendToSync("Message privé synchrone de P1 à P2", 2);
+
+            long duration = System.currentTimeMillis() - startTime;
+            System.out.println(this.getName() + " - SendToSync vers P2 terminé après " + duration + "ms");
+        }
+    }
+
+    /**
+     * Test de recevFromSync
+     */
+    private void testRecevFromSync() throws InterruptedException {
+        if (this.getName().equals("P2")) {
+            System.out.println("=== TEST RECEV FROM SYNC ===");
+            System.out.println(this.getName() + " - Attente d'un message de P1...");
+            long startTime = System.currentTimeMillis();
+
+            Object message = this.com.recevFromSync(1);
+
+            long duration = System.currentTimeMillis() - startTime;
+            System.out.println(this.getName() + " - Message reçu de P1 : \"" + message + "\" après " + duration + "ms");
+        }
     }
 }

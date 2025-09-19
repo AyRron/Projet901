@@ -10,7 +10,7 @@ public class MessageTo extends Message {
     }
 
     public int getSender() {
-        return destId;
+        return super.getSender();
     }
 
     public void setDestId(int destId) {
