@@ -40,7 +40,12 @@ public class Process  implements Runnable {
 
                 if (this.getName().equals("P0")){
                     Message msg;
-                    System.out.println(this.getName());
+
+                    this.com.requestSC();
+
+
+                    this.com.releaseSC();
+                    /*System.out.println(this.getName());*/
                     this.com.sendTo("j'appelle 2 et je te recontacte après", 2);
 
 

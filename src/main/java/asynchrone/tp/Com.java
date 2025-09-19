@@ -1,6 +1,8 @@
 package asynchrone.tp;
 import com.google.common.eventbus.Subscribe;
 
+import static java.lang.Thread.sleep;
+
 
 /**
  * Classe représentant un processus communicant dans un système distribué.
@@ -18,6 +20,11 @@ public class Com {
     public MailBox mailbox = new MailBox();
     /** Service EventBus pour la communication inter-processus. */
     private EventBusService bus;
+    /** Token pour la section critique. */
+    private Token token;
+
+    private EtatSC etatSC = EtatSC.NULL;
+
 
     // Attributs pour gérer la communication synchrone
     /** Réponse reçue lors d'une communication synchrone. */
@@ -39,6 +46,15 @@ public class Com {
         this.bus.registerSubscriber(this);
         this.nbProcess++;
         this.id = nbProcess;
+
+        System.out.println(this.id);
+        System.out.println(this.id == (Process.maxNbProcess)-1);
+
+        if (this.id == (Process.maxNbProcess-1)) {
+            this.token = new Token(Process.maxNbProcess);
+            token.next();
+            sendToken(token);
+        };
     }
 
     // ----------------------- Lamport Clock -----------------------
@@ -180,8 +196,63 @@ public class Com {
         return syncResponse;
     }
 
+    // ----------------------- Token ------------------------
+
+    @Subscribe
+    private void onToken(Token t) {
+        if (t.getDest() == this.id) {
+            System.out.println(this.id);
+            this.token = t;
+
+            if (this.etatSC == EtatSC.REQUEST) {
+                this.etatSC = EtatSC.SC;
+            }
+            while (this.etatSC == EtatSC.SC) {
+                try {
+                    sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            /*System.out.println("Je sors de la section critique " + this.id);*/
+            try{
+                sleep(100);
+                token.next();
+                sendToken(token);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+
+
+            if (this.etatSC == EtatSC.RELEASE) {
+                this.etatSC = EtatSC.NULL;
+            }
+        }
+    }
+
+    private synchronized void sendToken(Token t) {
+        EventBusService.getInstance().postEvent(t);
+        this.token = null;
+    }
 
     // ----------------------- Barrières Bloquantes -----------------------
+
+    public void requestSC() {
+        this.etatSC = EtatSC.REQUEST;
+        while (this.etatSC != EtatSC.SC) {
+            try {
+                sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void releaseSC() {
+        this.etatSC = EtatSC.RELEASE;
+    }
+
 
 
     // ----------------------- Getters & Setters -------------------------
