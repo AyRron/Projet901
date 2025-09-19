@@ -11,7 +11,7 @@ public class Process  implements Runnable {
     private int id;
 
     // Configuration pour choisir le type de test
-    private static final String TEST_MODE = "SYNC_COMMUNICATION"; // ou "CRITICAL_SECTION" ou "SYNC_COMMUNICATION"
+    private static final String TEST_MODE = "LAMPORT_CLOCK"; // ou "CRITICAL_SECTION" ou "SYNC_COMMUNICATION" ou "LAMPORT_CLOCK"
 
     public Process(String name){
         this.com = new Com();
@@ -45,6 +45,8 @@ public class Process  implements Runnable {
                     runCriticalSectionTest(loop);
                 } else if (TEST_MODE.equals("SYNC_COMMUNICATION")) {
                     runSyncCommunicationTest(loop);
+                } else if (TEST_MODE.equals("LAMPORT_CLOCK")) {
+                    runLamportClockTest(loop);
                 }
 
                 // Affichage des messages reçus des autres processus (sauf messages synchrones)
@@ -272,6 +274,96 @@ public class Process  implements Runnable {
 
             long duration = System.currentTimeMillis() - startTime;
             System.out.println(this.getName() + " - Message reçu de P1 : \"" + message + "\" après " + duration + "ms");
+        }
+    }
+
+    /**
+     * Test de l'horloge de Lamport
+     */
+    private void runLamportClockTest(int loop) {
+        try {
+            // Synchronisation initiale
+            if (loop == 0) {
+                System.out.println(this.getName() + " - Synchronisation initiale pour test Lamport...");
+                this.com.synchronize();
+                System.out.println(this.getName() + " - Début du test de l'horloge de Lamport");
+                return;
+            }
+
+            if (loop >= 1 && loop <= 5) {
+                // Chaque processus affiche son horloge et envoie des messages
+                long timestamp = System.currentTimeMillis();
+                System.out.println(this.getName() + " - Loop " + loop + " - Timestamp: " + timestamp + " - Horloge Lamport: " + this.com.getLamportClock());
+
+                if (loop == 1) {
+                    // P0 envoie un message à P1, P2 envoie à P3
+                    if (this.getName().equals("P0")) {
+                        long ts1 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts1 + " - Envoi message à P1 (horloge avant: " + this.com.getLamportClock() + ")");
+                        this.com.sendTo("Message de P0 à P1 (loop 1)", 1);
+                        long ts2 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts2 + " - Horloge après envoi: " + this.com.getLamportClock());
+                    } else if (this.getName().equals("P2")) {
+                        long ts1 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts1 + " - Envoi message à P3 (horloge avant: " + this.com.getLamportClock() + ")");
+                        this.com.sendTo("Message de P2 à P3 (loop 1)", 3);
+                        long ts2 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts2 + " - Horloge après envoi: " + this.com.getLamportClock());
+                    }
+                }
+
+                if (loop == 2) {
+                    // P1 envoie à P2, P3 envoie à P0
+                    if (this.getName().equals("P1")) {
+                        long ts1 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts1 + " - Envoi message à P2 (horloge avant: " + this.com.getLamportClock() + ")");
+                        this.com.sendTo("Message de P1 à P2 (loop 2)", 2);
+                        long ts2 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts2 + " - Horloge après envoi: " + this.com.getLamportClock());
+                    } else if (this.getName().equals("P3")) {
+                        long ts1 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts1 + " - Envoi message à P0 (horloge avant: " + this.com.getLamportClock() + ")");
+                        this.com.sendTo("Message de P3 à P0 (loop 2)", 0);
+                        long ts2 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts2 + " - Horloge après envoi: " + this.com.getLamportClock());
+                    }
+                }
+
+                if (loop == 3) {
+                    // Broadcast depuis P0
+                    if (this.getName().equals("P0")) {
+                        long ts1 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts1 + " - Broadcast (horloge avant: " + this.com.getLamportClock() + ")");
+                        this.com.broadcast("Broadcast de P0 à tous (loop 3)");
+                        long ts2 = System.currentTimeMillis();
+                        System.out.println(this.getName() + " - Timestamp: " + ts2 + " - Horloge après broadcast: " + this.com.getLamportClock());
+                    }
+                }
+
+                if (loop == 4) {
+                    // Événements internes simulés
+                    long ts1 = System.currentTimeMillis();
+                    System.out.println(this.getName() + " - Timestamp: " + ts1 + " - Événement interne (horloge avant: " + this.com.getLamportClock() + ")");
+                    this.com.getLamportClock(); // Lecture de l'horloge = événement interne
+                    long ts2 = System.currentTimeMillis();
+                    System.out.println(this.getName() + " - Timestamp: " + ts2 + " - Horloge après événement interne: " + this.com.getLamportClock());
+                }
+
+                if (loop == 5) {
+                    // Dernière synchronisation
+                    long ts1 = System.currentTimeMillis();
+                    System.out.println(this.getName() + " - Timestamp: " + ts1 + " - Synchronisation finale (horloge avant: " + this.com.getLamportClock() + ")");
+                    this.com.synchronize();
+                    long ts2 = System.currentTimeMillis();
+                    System.out.println(this.getName() + " - Timestamp: " + ts2 + " - Horloge finale après synchronisation: " + this.com.getLamportClock());
+                }
+
+                Thread.sleep(300); // Petite pause entre les loops
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(this.getName() + " - Interruption pendant le test Lamport");
         }
     }
 }

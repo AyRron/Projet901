@@ -17,7 +17,8 @@ public class Com {
     public MailBox mailbox = new MailBox();
     private EventBusService bus;
 
-    private int lamportClock;
+//    private int lamportClock;
+    private Lamport lamportClock = new Lamport();
     private Semaphore clockSemaphore;
 
     // Section critique distribuée
@@ -55,7 +56,7 @@ public class Com {
         this.bus.registerSubscriber(this);
         this.id = getNextProcessId();
 
-        this.lamportClock = 0;
+//        this.lamportClock = 0;
         this.clockSemaphore = new Semaphore(1);
 
         // Initialisation section critique
@@ -77,7 +78,8 @@ public class Com {
     public void inc_clock() {
         try {
             clockSemaphore.acquire();
-            lamportClock++;
+//            lamportClock++;
+            this.lamportClock.inc_clock();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
@@ -97,7 +99,8 @@ public class Com {
 
         try {
             clockSemaphore.acquire();
-            lamportClock = Math.max(lamportClock, receivedTimestamp) + 1;
+//            lamportClock = Math.max(lamportClock, receivedTimestamp) + 1;
+            this.lamportClock.inc_clock(receivedTimestamp);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
@@ -118,11 +121,12 @@ public class Com {
 
         try {
             clockSemaphore.acquire();
-            lamportClock++;
-            return lamportClock;
+//            lamportClock++;
+            this.lamportClock.inc_clock();
+            return this.lamportClock.getHorloge();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return lamportClock;
+            return this.lamportClock.getHorloge();
         } finally {
             clockSemaphore.release();
         }
@@ -135,10 +139,10 @@ public class Com {
     public int getLamportClock() {
         try {
             clockSemaphore.acquire();
-            return lamportClock;
+            return this.lamportClock.getHorloge();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return lamportClock;
+            return this.lamportClock.getHorloge();
         } finally {
             clockSemaphore.release();
         }

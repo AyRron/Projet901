@@ -18,6 +18,16 @@ public class Lamport {
         return this.horloge;
     }
 
+    public int inc_clock(){
+        this.horloge += 1;
+        return this.horloge;
+    }
+
+    public int inc_clock(int In){
+        this.horloge = Math.max(this.horloge, In) + 1;
+        return this.horloge;
+    }
+
     public int getHorloge() {
         return horloge;
     }
