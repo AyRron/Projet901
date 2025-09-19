@@ -508,4 +508,19 @@ public class Com {
         return mailbox.size();
     }
 
+    /**
+     * Désinscrit le processus de l'EventBus.
+     *
+     * Cette méthode doit être appelée lors de l'arrêt du processus pour éviter
+     * que les handlers continuent de recevoir des événements après l'arrêt.
+     */
+    public void unregister() {
+        this.bus.unRegisterSubscriber(this);
+        // Débloquer les threads en attente lors de l'arrêt
+        synchronized(this) {
+            this.attenteSync = false;
+            notifyAll();
+        }
+    }
+
 }

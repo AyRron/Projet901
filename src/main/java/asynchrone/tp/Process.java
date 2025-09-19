@@ -41,7 +41,7 @@ public class Process implements Runnable {
                 if (this.getName().equals("P0")){
                     Message msg;
 
-                    this.com.broadcastSync("ALLEEEEEER");
+                    this.com.broadcastSync("Synchronisation globale - Message de P0");
                     /*System.out.println(this.getName());*/
 
                     /*if (this.com.mailbox.isEmpty()){
@@ -137,5 +137,6 @@ public class Process implements Runnable {
     }
     public void stop(){
         this.alive = false;
+        this.com.unregister();
     }
 }
