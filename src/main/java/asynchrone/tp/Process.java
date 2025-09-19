@@ -3,7 +3,7 @@ package asynchrone.tp;
 
 import com.google.common.eventbus.Subscribe;
 
-public class Process  implements Runnable {
+public class Process implements Runnable {
     private Thread thread;
     private boolean alive;
     private boolean dead;
