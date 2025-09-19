@@ -119,29 +119,34 @@ public class Process  implements Runnable {
     public void run(){
         int loop = 0;
 
-        System.out.println(Thread.currentThread().getName() + " id :" + this.id);
+        /*System.out.println(Thread.currentThread().getName() + " id :" + this.id);*/
 
         while(this.alive){
-            System.out.println(Thread.currentThread().getName() + " Loop : " + loop);
+            /*System.out.println(Thread.currentThread().getName() + " Loop : " + loop);*/
             try{
                 Thread.sleep(500);
 
+
+
                 if (this.getName().equals("P0")){
                     Message msg;
+                    System.out.println(this.getName());
                     this.com.sendTo("j'appelle 2 et je te recontacte après", 2);
 
 
-                    if (this.com.mailbox.isEmpty()){
+                    /*if (this.com.mailbox.isEmpty()){
+                        System.out.println("If 1 de P0");
                         System.out.println("Catched !");
                         this.com.broadcast("J'ai gagné !!!");
                     }else{
+                        System.out.println("If 2 de P0");
                         msg = this.com.mailbox.getMsg();
                         System.out.println(msg.getSender() + " à eu le jeton en premier");
-                    }
+                    }*/
                 } else if (this.getName().equals("P2")){
-                    Message msg;
+                    /*Message msg;
                     msg = this.com.mailbox.getMsg();
-                    System.out.println(msg);
+                    System.out.println("Le message de P2 est : " + msg.getPayload());*/
                 }
 
                 /*if (this.getName() == "P0"){

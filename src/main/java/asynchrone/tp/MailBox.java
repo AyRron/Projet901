@@ -20,6 +20,10 @@ public class MailBox {
         return messages.remove(0); // Retrieve and remove the first message
     }
 
+    public synchronized int size() {
+        return messages.size();
+    }
+
     public synchronized boolean isEmpty() {
         return messages.isEmpty();
     }

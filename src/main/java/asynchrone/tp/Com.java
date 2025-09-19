@@ -6,13 +6,16 @@ import java.util.List;
 
 public class Com {
 
-    private int nbProcess = 0;
+    private static int nbProcess = -1;
     private int id;
     public MailBox mailbox = new MailBox();
     private EventBusService bus;
 
     public Com() {
+        this.bus = EventBusService.getInstance();
+        this.bus.registerSubscriber(this);
         this.nbProcess++;
+        this.id = nbProcess;
     }
 
     public void inc_clock() {
@@ -25,16 +28,23 @@ public class Com {
     public void onBroadcast(BroadcastMessage m) {
         if (m.getSender() != this.id) {
             mailbox.add(m);
+/*
+            System.out.println("");
+            System.out.println("Réception d'un message par broadcast");
             System.out.println(Thread.currentThread().getName() + " receives broadcast: " + m.getPayload() + " pour process " + this.id + " avec l'estampille " + m.getEstampillage());
+*/
         }
     }
 
     @Subscribe
     public void onMessageTo(MessageTo m) {
-        System.out.println(m.getSender() + " receives message: " + m.getPayload());
         if (m.getDest() == this.id) {
             mailbox.add(m);
+/*
+            System.out.println("");
+            System.out.println("Réception d'un message privé");
             System.out.println(Thread.currentThread().getName() + " receives message to: " + m.getPayload() + " pour process " + this.id + " avec l'estampille " + m.getEstampillage());
+*/
         }
     }
 
@@ -50,6 +60,10 @@ public class Com {
 
     public int getId() {
         return id;
+    }
+
+    public int getNbMessages() {
+        return mailbox.size();
     }
 
     public void setId(int id) {
