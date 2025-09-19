@@ -15,6 +15,8 @@ public class Com {
 
     // Attribus de l'identifiant et de la messagerie
 
+    /** Horloge Lamport. */
+    private Lamport lamport;
     /** Nombre total de processus créés. */
     private static int nbProcess = -1;
     /** Nombre total de processus dans le système. */
@@ -32,21 +34,12 @@ public class Com {
     /** Indique si le processus est en attente de réception d'un message synchrone. */
     private boolean attenteSync;
     /** Ensemble des identifiants des processus dont on attend la réception d'un message. */
-    private Set<Integer> pendingRecieves;
+    private Set<Integer> pendingReceives;
     /** Message du Broadcast. */
     private MessageBroadcastSync messageBroadcastSync;
+    /** Message du sendToSync. */
+    private MessageToSync messageToSync;
 
-
-
-    // Attributs pour gérer la communication synchrone
-    /** Réponse reçue lors d'une communication synchrone. */
-    private Object syncResponse = null;
-    /** Indique si une réponse synchrone a été reçue. */
-    private boolean responseReceived = false;
-    /** Indique si un message synchrone a été envoyé. */
-    private boolean messageSent = false;
-    /** Identifiant du processus dont on attend la réponse. */
-    private int waitingForResponseFrom = -1;
 
 
     /**
@@ -61,28 +54,20 @@ public class Com {
         this.nbProcess++;
         this.id = nbProcess;
         this.messageBroadcastSync = null;
+        this.messageToSync = null;
         this.etatSC = EtatSC.NULL;
         this.attenteSync = false;
-        this.pendingRecieves = new HashSet<>();
+        this.pendingReceives = new HashSet<>();
+        this.lamport = new Lamport();
 
         System.out.println(this.id);
-        System.out.println(this.id == (nbTotalProcess)-1);
+        System.out.println(this.id == (this.nbTotalProcess)-1);
 
-        if (this.id == (nbTotalProcess-1)) {
-            this.token = new Token(nbTotalProcess);
-            token.next();
-            sendToken(token);
+        if (this.id == (this.nbTotalProcess-1)) {
+            this.token = new Token(this.nbTotalProcess);
+            this.token.next();
+            sendToken(this.token);
         };
-    }
-
-    // ----------------------- Lamport Clock -----------------------
-    /**
-     * Incrémente l'horloge logique (Lamport).
-     * À implémenter selon le protocole choisi.
-     */
-    public void inc_clock() {
-        // TODO Auto-generated method stub
-
     }
 
     // ----------------------- Message Broadcast Asynchrone -----------------------
@@ -93,7 +78,8 @@ public class Com {
     @Subscribe
     public void onBroadcast(MessageBroadcast m) {
         if (m.getSender() != this.id) {
-            mailbox.add(m);
+            this.lamport.inc_clock(m.getEstampillage());
+            this.mailbox.add(m);
         }
     }
 
@@ -102,7 +88,7 @@ public class Com {
      * @param o contenu du message à diffuser
      */
     public void broadcast(Object o) {
-        MessageBroadcast message = new MessageBroadcast(o, 1, id);
+        MessageBroadcast message = new MessageBroadcast(o, this.lamport.inc_clock(), id);
         EventBusService.getInstance().postEvent(message);
     }
 
@@ -116,7 +102,8 @@ public class Com {
     @Subscribe
     public void onMessageTo(MessageTo m) {
         if (m.getDest() == this.id) {
-            mailbox.add(m);
+            this.lamport.inc_clock(m.getEstampillage());
+            this.mailbox.add(m);
         }
     }
 
@@ -126,7 +113,7 @@ public class Com {
      * @param dest identifiant du destinataire
      */
     public void sendTo(Object o, int dest) {
-        MessageTo message = new MessageTo(o, 1, id, dest);
+        MessageTo message = new MessageTo(o, this.lamport.inc_clock(), id, dest);
         EventBusService.getInstance().postEvent(message);
     }
 
@@ -159,8 +146,9 @@ public class Com {
     public void onBroadcastSyncSystem(MessageBroadcastSync m) {
         if (m.getSender() != this.id) {
             System.out.println("Mon message est: " + m.getPayload());
+            this.lamport.inc_clock(m.getEstampillage());
             this.messageBroadcastSync = m;
-            sendRecieve(m.getSender());
+            sendReceive(m.getSender());
         }
     }
 
@@ -170,33 +158,33 @@ public class Com {
      * @return le contenu du message envoyé
      */
     public void broadcastSync(Object o) {
-        MessageBroadcastSync message = new MessageBroadcastSync(o, 1, id);
+        MessageBroadcastSync message = new MessageBroadcastSync(o, this.lamport.inc_clock(), id);
         EventBusService.getInstance().postEvent(message);
 
         // Initialiser la liste des destinataires attendus (sauf soi-même)
-        pendingRecieves.clear();
+        pendingReceives.clear();
         for (int i = 0; i < nbTotalProcess; i++) {
-            if (i != id) pendingRecieves.add(i);
+            if (i != id) pendingReceives.add(i);
         }
         attenteSync = true;
     }
 
-    // ----------------------- Message de Recieve -----------------------
+    // ----------------------- Message de Receive -----------------------
 
     @Subscribe
-    private synchronized void onRecieve(Recieve m) {
+    private synchronized void onReceive(Receive m) {
         if (m.getDest() == this.id) {
-            pendingRecieves.remove(m.getSender());
-            if (pendingRecieves.isEmpty()) {
-                attenteSync = false; // Tous les Recieve reçus
+            pendingReceives.remove(m.getSender());
+            if (pendingReceives.isEmpty()) {
+                attenteSync = false; // Tous les Receive reçus
                 notifyAll();
             }
         }
     }
 
 
-    private synchronized void sendRecieve(int dest) {
-        Recieve message = new Recieve(null, 1, id, dest);
+    private synchronized void sendReceive(int dest) {
+        Receive message = new Receive(null, 1, id, dest);
         EventBusService.getInstance().postEvent(message);
     }
 
@@ -212,67 +200,77 @@ public class Com {
     }
 
     // ----------------------- Message To Synchrone -----------------------
-    /**
-     * Méthode appelée lors de la réception d'un message direct synchrone.
-     * Bloque le processus jusqu'à réception ou traitement du message.
-     * @param dest identifiant du destinataire attendu
-     * @return le message reçu ou traité
-     */
-    /*@Subscribe
-    public synchronized MessageToSync recevFromSync(int dest) {
-        if (m.getDest() == this.id) {
-            // Traitement du message reçu
-            Object response = processMessage(m.getPayload());
 
-            // Envoyer réponse directement à l'émetteur
-            MessageToSync responseMsg = new MessageToSync(response, m.getClock() + 1, this.id, m.getSender());
-            EventBusService.getInstance().postEvent(responseMsg);
-
-            // Notifier que le message a été traité
-            messageSent = true;
-            notifyAll();
-        } else if (m.getDest() == -1 && m.getSender() == waitingForResponseFrom) {
-            // On reçoit la réponse qu'on attendait
-            syncResponse = m.getPayload();
-            responseReceived = true;
-            notifyAll();
+    public MessageToSync receivFromSync() {
+        while (messageToSync == null){
+            try{
+                sleep(100);
+            } catch (InterruptedException e){
+                e.printStackTrace();
+            }
         }
-    }*/
+        MessageToSync res = messageToSync;
+        messageToSync = null;
+        return res;
+    }
+
+
+
+    @Subscribe
+    public void recevFromSyncSystem(MessageToSync m) {
+        if (m.getSender() != this.id) {
+            System.out.println("Mon message est: " + m.getPayload());
+            this.lamport.inc_clock(m.getEstampillage());
+            this.messageToSync = m;
+            sendReceive(m.getSender());
+        }
+    }
 
     /**
      * Envoie un message direct synchrone à un processus cible.
      * Bloque jusqu'à réception de la réponse.
      * @param o contenu du message
      * @param dest identifiant du destinataire
-     * @return la réponse reçue du destinataire
      */
-    /*public synchronized Object sendToSync(Object o, int dest) {
-        // Réinitialiser les variables d'état
-        syncResponse = null;
-        responseReceived = false;
-        waitingForResponseFrom = dest;
-
-        // Envoyer le message
-        MessageToSync message = new MessageToSync(o, 1, id, dest);
+    public void sendToSync(Object o, int dest) {
+        MessageToSync message = new MessageToSync(o, this.lamport.inc_clock(), id, dest);
         EventBusService.getInstance().postEvent(message);
 
-        // Attendre la réponse
-        while (!responseReceived) {
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        // On attend le Receive du destinataire
+        pendingReceives.clear();
+        pendingReceives.add(dest);
+        attenteSync = true;
+
+        waitSyncComplete();
+    }
+
+
+    // ----------------------- Synchronize -----------------------
+    public void synchronize() {
+        // Le processus appelant envoie un message de synchronisation à tous
+        broadcastSync("SYNC_REQUEST");
+
+        // Il attend que tous les processus répondent (bloquant)
+        waitSyncComplete();
+
+        // Une fois toutes les réponses reçues, il débloque tous les processus
+        broadcast("SYNC_RELEASE");
+    }
+
+    // Méthode pour gérer la réception des messages de déblocage
+    @Subscribe
+    public void onSyncRelease(MessageBroadcast m) {
+        if (m.getSender() != this.id && "SYNC_RELEASE".equals(m.getPayload())) {
+            // Si on reçoit le message SYNC_RELEASE, on débloque
+            synchronized(this) {
+                notifyAll(); // Réveiller les threads en attente
             }
         }
+    }
 
-        // Réinitialiser l'état d'attente
-        waitingForResponseFrom = -1;
 
-        return syncResponse;
-    }*/
 
     // ----------------------- Token ------------------------
-
     @Subscribe
     private void onToken(Token t) {
         if (t.getDest() == this.id) {
@@ -306,7 +304,7 @@ public class Com {
         }
     }
 
-    private synchronized void sendToken(Token t) {
+    private void sendToken(Token t) {
         EventBusService.getInstance().postEvent(t);
         this.token = null;
     }

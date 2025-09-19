@@ -8,13 +8,14 @@ public class Lamport {
         this.horloge = 0;
     }
 
-    public int estampIn(int In){
-        this.horloge = Math.max(this.horloge, In) + 1;
+
+    public int inc_clock(){
+        this.horloge += 1;
         return this.horloge;
     }
 
-    public int estampOut(){
-        this.horloge += 1;
+    public int inc_clock(int In){
+        this.horloge = Math.max(this.horloge, In) + 1;
         return this.horloge;
     }
 

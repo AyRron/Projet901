@@ -1,10 +1,10 @@
 package asynchrone.tp;
 
-public class Recieve extends Message {
+public class Receive extends Message {
 
     private int destId;
 
-    public Recieve(Object payload, int estampillage, int senderId, int destId) {
+    public Receive(Object payload, int estampillage, int senderId, int destId) {
         super(payload, estampillage, senderId);
         this.destId = destId;
     }
